@@ -20,7 +20,6 @@ if (!firebase.apps.length) {
 const firestore = firebase.firestore();
 const database = firebase.database();
 
-
 const servers = {
   iceServers: [
     {
@@ -39,17 +38,24 @@ let remoteStream = null;
 const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
 const callButton = document.getElementById('callButton');
-const callInput = document.getElementById('callInput');
 const answerButton = document.getElementById('answerButton');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
 //
+const roomBox = document.getElementById('roomBox');
+const room = document.getElementById('room');
 const databaseID = document.getElementById('databaseID')
 // 1. Setup media sources
 
+database.ref("calls").on("child_added", (snapshot) => {
+  room.innerHTML = snapshot.key;
+  roomBox.style.visibility = 'visible'
+// can be done better
+})
+
 webcamButton.onclick = async () => {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
   remoteStream = new MediaStream();
 
   // Push tracks from local stream to peer connection
@@ -83,10 +89,6 @@ callButton.onclick = async () => {
   const callRef = database.ref('calls').push()
   const offerCandidates2 = callRef.child('offerCandidates')
   const answerCandidates2 = callRef.child('answerCandidates')
-
-  database.ref("calls").on("child_added", (snapshot) => {
-    databaseID.value = snapshot.key
-  })
 
   // callInput.value = callDoc.id;// add value from snapshot here
 
@@ -154,7 +156,7 @@ answerButton.onclick = async () => {
   // const offerCandidates = callDoc.collection('offerCandidates');
 
   // database variables below
-  const callIdDatabase = databaseID.value
+  const callIdDatabase = (room.innerText)
   const callRef = database.ref('calls').child(callIdDatabase);
   const answerCandidates2 = callRef.child('answerCandidates');
   const offerCandidates2 = callRef.child('offerCandidates');
@@ -199,6 +201,4 @@ answerButton.onclick = async () => {
     pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
     console.log("ICE candidate added")
   })
-
-
 };

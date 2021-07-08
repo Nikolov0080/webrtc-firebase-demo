@@ -21,3 +21,11 @@ video {
   align-items: center;
   justify-content: center;
 }
+
+#roomBox{
+  margin: auto;
+  width: 80%;
+  display: flex;
+  justify-content: space-evenly;
+  background-color: lightgreen;
+}
