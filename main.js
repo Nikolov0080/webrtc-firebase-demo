@@ -4,6 +4,8 @@ import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/database';
 
+const startupTime = new Date().valueOf();
+
 const firebaseConfig = {
   apiKey: "AIzaSyAMlK4Jz60lEYnZvcFzGo-JqOPQ-Q2oXP0",
   authDomain: "web-rtc-b2af7.firebaseapp.com",
@@ -29,8 +31,6 @@ const servers = {
 
 // Global State
 const pc = new RTCPeerConnection(servers);
-let localStream = null;
-let remoteStream = null;
 
 // HTML elements
 const webcamButton = document.getElementById('webcamButton');
@@ -40,17 +40,24 @@ const callInput = document.getElementById('callInput');
 const answerButton = document.getElementById('answerButton');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
-
+const stopWebCam = document.getElementById('stopWebCam');
+const mute = document.getElementById('mute');
+const callTime = document.getElementById("callTime");
 // 1. Setup media sources
 
-webcamButton.onclick = async () => {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  remoteStream = new MediaStream();
+let canAnswer = false;
 
+webcamButton.onclick = async () => {
+
+  const localStream = new MediaStream(await navigator.mediaDevices.getUserMedia({ video: true, audio: true }));
+  const remoteStream = new MediaStream();
   // Push tracks from local stream to peer connection
   localStream.getTracks().forEach((track) => {
     pc.addTrack(track, localStream);
   });
+  if(canAnswer){
+    answerButton.disabled = false;
+  }
 
   // Pull tracks from remote stream, add to video stream
   pc.ontrack = (event) => {
@@ -63,9 +70,55 @@ webcamButton.onclick = async () => {
   remoteVideo.srcObject = remoteStream;
 
   callButton.disabled = false;
-  answerButton.disabled = false;
   webcamButton.disabled = true;
+  mute.disabled = false;
+  stopWebCam.disabled = false;
 };
+
+mute.addEventListener('click', async function () {
+  webcamVideo.srcObject.getAudioTracks().forEach(t => t.enabled = !t.enabled);
+
+  const micIcon = mute.firstChild;
+
+  if (micIcon.classList.contains('fa-microphone')) {
+    micIcon.classList.remove('fa-microphone')
+    micIcon.classList.add('fa-microphone-slash')
+    mute.style.background = 'red'
+  } else {
+    micIcon.classList.remove('fa-microphone-slash')
+    micIcon.classList.add('fa-microphone')
+    mute.style.background = 'white'
+  }
+})
+stopWebCam.addEventListener('click', function () {
+  webcamVideo.srcObject.getVideoTracks().forEach(t => t.enabled = !t.enabled);
+
+  const cameraIcon = stopWebCam.firstChild
+
+  if (cameraIcon.classList.contains('fa-video')) {
+    cameraIcon.classList.remove('fa-video')
+    cameraIcon.classList.add('fa-video-slash')
+    stopWebCam.style.background = 'red'
+  } else {
+    cameraIcon.classList.remove('fa-video-slash')
+    cameraIcon.classList.add('fa-video')
+    stopWebCam.style.background = 'white'
+  }
+
+})
+
+firestore.collection('calls').orderBy('timeStamp').limitToLast(1).onSnapshot((doc) => {
+  doc.docs.forEach((x) => {
+    if (x.data().timeStamp > startupTime) {
+      callInput.innerText = x.id;
+      callTime.innerText = new Date(x.data().timeStamp).toISOString().replace('T', ' ').substr(length, 20)
+      canAnswer = true;
+    } else {
+      callInput.innerText = "No active rooms";
+      answerButton.disabled = true;
+    }
+  })
+})
 
 // 2. Create an offer
 callButton.onclick = async () => {
@@ -74,7 +127,13 @@ callButton.onclick = async () => {
   const offerCandidates = callDoc.collection('offerCandidates');
   const answerCandidates = callDoc.collection('answerCandidates');
 
-  callInput.value = callDoc.id;
+  // firestore.collection('calls').onSnapshot((doc) => {
+  //   doc.docs.forEach((x) => {
+  //     if (x.metadata.hasPendingWrites) {
+  //       callInput.innerText = x.id
+  //     }
+  //   })
+  // })
 
   // Get candidates for caller, save to db
   pc.onicecandidate = (event) => {
@@ -90,7 +149,7 @@ callButton.onclick = async () => {
     type: offerDescription.type,
   };
 
-  await callDoc.set({ offer });
+  await callDoc.set({ offer, timeStamp: new Date().valueOf() });
 
   // Listen for remote answer
   callDoc.onSnapshot((snapshot) => {
@@ -116,7 +175,8 @@ callButton.onclick = async () => {
 
 // 3. Answer the call with the unique ID
 answerButton.onclick = async () => {
-  const callId = callInput.value;
+
+  const callId = callInput.innerText;
   const callDoc = firestore.collection('calls').doc(callId);
   const answerCandidates = callDoc.collection('answerCandidates');
   const offerCandidates = callDoc.collection('offerCandidates');

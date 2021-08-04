@@ -1,38 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebRTC Demo</title>
-  </head>
-  <body>
-    <h2>1. Start your Webcam</h2>
-    <div class="videos">
-      <span>
-        <h3>Local Stream</h3>
-        <video id="webcamVideo" autoplay playsinline></video>
-      </span>
-      <span>
-        <h3>Remote Stream</h3>
-        <video id="remoteVideo" autoplay playsinline></video>
-      </span>
-    </div>
 
-    <button id="webcamButton">Start webcam</button>
-    <h2>2. Create a new Call</h2>
-    <button id="callButton" disabled>Create Call (offer)</button>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="//cdn.muicss.com/mui-0.10.3/css/mui.min.css" rel="stylesheet" type="text/css" />
+  <script src="//cdn.muicss.com/mui-0.10.3/js/mui.min.js"></script>
+  <script src="https://kit.fontawesome.com/48459a0cff.js" crossorigin="anonymous"></script>
+  <title>WebRTC Demo</title>
+</head>
 
-    <h2>3. Join a Call</h2>
-    <p>Answer the call from a different browser window or device</p>
+<body>
 
-    <input id="callInput" />
+  <h2>1. Start your Webcam</h2>
+  <div class="videos">
+    <span>
+      <h3>Local Stream</h3>
+      <video id="webcamVideo" muted="true" autoplay playsinline></video>
+    </span>
+    <span>
+      <h3>Remote Stream</h3>
+      <video id="remoteVideo" autoplay playsinline></video>
+    </span>
+  </div>
+
+
+  <button disabled="true" id="stopWebCam"><i class="fas fa-video"></i></button>
+  <button disabled="true" id="mute"><i class="fas fa-microphone"></i></button>
+  <button id="webcamButton">Start webcam</button>
+  <!-- <h2>2. Create a new Call</h2> -->
+  <br />
+  <br />
+  <button id="callButton" disabled>Create Call (offer)</button>
+
+  <h2>3. Join last active Call</h2>
+  <!-- <p>Answer the call from a different browser window or device</p> -->
+  <div id="answerBox">
+    <div id="callInput"></div>
     <button id="answerButton" disabled>Answer</button>
+  </div>
+  <h3 id="callTime"></h3>
+  last room created
+  <h2>4. Hangup</h2>
 
-    <h2>4. Hangup</h2>
+  <button id="hangupButton" disabled>Hangup</button>
 
-    <button id="hangupButton" disabled>Hangup</button>
+  <script type="module" src="/main.js"></script>
+</body>
 
-    <script type="module" src="/main.js"></script>
-  </body>
 </html>
