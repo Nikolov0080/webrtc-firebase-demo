@@ -45,7 +45,14 @@ const mute = document.getElementById('mute');
 const callTime = document.getElementById("callTime");
 // 1. Setup media sources
 
-let canAnswer = false;
+let activeRoom = false;
+let webCamStarted = false;
+
+const activateAnswerBtn = () => {
+  if (activeRoom && webCamStarted) {
+    answerButton.disabled = false;
+  }
+}
 
 webcamButton.onclick = async () => {
 
@@ -53,11 +60,10 @@ webcamButton.onclick = async () => {
   const remoteStream = new MediaStream();
   // Push tracks from local stream to peer connection
   localStream.getTracks().forEach((track) => {
+    webCamStarted = true;
     pc.addTrack(track, localStream);
   });
-  if(canAnswer){
-    answerButton.disabled = false;
-  }
+  activateAnswerBtn();
 
   // Pull tracks from remote stream, add to video stream
   pc.ontrack = (event) => {
@@ -112,7 +118,8 @@ firestore.collection('calls').orderBy('timeStamp').limitToLast(1).onSnapshot((do
     if (x.data().timeStamp > startupTime) {
       callInput.innerText = x.id;
       callTime.innerText = new Date(x.data().timeStamp).toISOString().replace('T', ' ').substr(length, 20)
-      canAnswer = true;
+      activeRoom = true;
+      activateAnswerBtn();
     } else {
       callInput.innerText = "No active rooms";
       answerButton.disabled = true;
