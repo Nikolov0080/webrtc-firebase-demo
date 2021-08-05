@@ -1,20 +1,13 @@
 import './style.css';
-
 import firebase from 'firebase/app';
+import fire from './fire'
+import calling from './ring/firebase_ring';
 import 'firebase/firestore';
 import 'firebase/database';
 
+
 const startupTime = new Date().valueOf();
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAMlK4Jz60lEYnZvcFzGo-JqOPQ-Q2oXP0",
-  authDomain: "web-rtc-b2af7.firebaseapp.com",
-  projectId: "web-rtc-b2af7",
-  storageBucket: "web-rtc-b2af7.appspot.com",
-  messagingSenderId: "593149952785",
-  appId: "1:593149952785:web:1867797b5db06dac09c2b0"
-};
-
+const firebaseConfig = fire;
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
@@ -43,16 +36,38 @@ const hangupButton = document.getElementById('hangupButton');
 const stopWebCam = document.getElementById('stopWebCam');
 const mute = document.getElementById('mute');
 const callTime = document.getElementById("callTime");
+const ringButton = document.getElementById("ring");
+const ringSound = document.getElementById("ringSound");
+
+let isRinging = false;
+let canRing = true;
+
+await firebase.database().ref("ring").on('value', (snapshot) => {
+  const willRing = snapshot.val();
+  if (canRing) {
+    if (willRing) {
+      ringSound.play();
+      answerButton.disabled = false;
+      answerButton.style.background = "green";
+
+    } else {
+      ringSound.pause();
+      answerButton.disabled = true;
+      answerButton.style.background = "white";
+
+    }
+  }
+})
+
+ringButton.onclick = () => {
+  calling(false)
+}
+
 // 1. Setup media sources
 
 let activeRoom = false;
 let webCamStarted = false;
 
-const activateAnswerBtn = () => {
-  if (activeRoom && webCamStarted) {
-    answerButton.disabled = false;
-  }
-}
 
 webcamButton.onclick = async () => {
 
@@ -63,7 +78,6 @@ webcamButton.onclick = async () => {
     webCamStarted = true;
     pc.addTrack(track, localStream);
   });
-  activateAnswerBtn();
 
   // Pull tracks from remote stream, add to video stream
   pc.ontrack = (event) => {
@@ -96,6 +110,7 @@ mute.addEventListener('click', async function () {
     mute.style.background = 'white'
   }
 })
+
 stopWebCam.addEventListener('click', function () {
   webcamVideo.srcObject.getVideoTracks().forEach(t => t.enabled = !t.enabled);
 
@@ -119,10 +134,11 @@ firestore.collection('calls').orderBy('timeStamp').limitToLast(1).onSnapshot((do
       callInput.innerText = x.id;
       callTime.innerText = new Date(x.data().timeStamp).toISOString().replace('T', ' ').substr(length, 20)
       activeRoom = true;
-      activateAnswerBtn();
     } else {
       callInput.innerText = "No active rooms";
       answerButton.disabled = true;
+      answerButton.style.background = "white";
+
     }
   })
 })
@@ -133,14 +149,6 @@ callButton.onclick = async () => {
   const callDoc = firestore.collection('calls').doc();
   const offerCandidates = callDoc.collection('offerCandidates');
   const answerCandidates = callDoc.collection('answerCandidates');
-
-  // firestore.collection('calls').onSnapshot((doc) => {
-  //   doc.docs.forEach((x) => {
-  //     if (x.metadata.hasPendingWrites) {
-  //       callInput.innerText = x.id
-  //     }
-  //   })
-  // })
 
   // Get candidates for caller, save to db
   pc.onicecandidate = (event) => {
@@ -176,8 +184,11 @@ callButton.onclick = async () => {
       }
     });
   });
-
+  answerButton.disabled = true;
+  answerButton.style.background = "white";
   hangupButton.disabled = false;
+  ringButton.disabled = false; // setting ring button active
+  canRing = false;
 };
 
 // 3. Answer the call with the unique ID
@@ -216,4 +227,6 @@ answerButton.onclick = async () => {
       }
     });
   });
+
+  calling(true);
 };
