@@ -5,14 +5,13 @@ import calling from './ring/firebase_ring';
 import 'firebase/firestore';
 import 'firebase/database';
 
-
 const startupTime = new Date().valueOf();
 const firebaseConfig = fire;
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 const firestore = firebase.firestore();
-
+const storage = firebase.storage().ref("videos")
 const servers = {
   iceServers: [
     {
@@ -46,12 +45,20 @@ firebase.database().ref("ring").on('value', (snapshot) => {
   const willRing = snapshot.val();
   if (canRing) {
     if (willRing) {
-      ringSound.play();
+
+      window.addEventListener('click', () => {
+        ringSound.play();
+      })
+      window.dispatchEvent(new Event('click'))
       answerButton.disabled = false;
       answerButton.style.background = "green";
 
     } else {
-      ringSound.pause();
+
+      window.addEventListener('click', () => {
+        ringSound.pause();
+      })
+      window.dispatchEvent(new Event('click'))
       answerButton.disabled = true;
       answerButton.style.background = "white";
 
@@ -68,10 +75,10 @@ ringButton.onclick = () => {
 let activeRoom = false;
 let webCamStarted = false;
 
+const constraintObj = { video: true, audio: true }
 
 webcamButton.onclick = async () => {
-
-  const localStream = new MediaStream(await navigator.mediaDevices.getUserMedia({ video: true, audio: true }));
+  const localStream = new MediaStream(await navigator.mediaDevices.getUserMedia(constraintObj));
   const remoteStream = new MediaStream();
   // Push tracks from local stream to peer connection
   localStream.getTracks().forEach((track) => {
@@ -172,6 +179,7 @@ callButton.onclick = async () => {
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc.setRemoteDescription(answerDescription);
+      record(false)
     }
   });
 
@@ -184,6 +192,7 @@ callButton.onclick = async () => {
       }
     });
   });
+
   answerButton.disabled = true;
   answerButton.style.background = "white";
   hangupButton.disabled = false;
@@ -219,6 +228,7 @@ answerButton.onclick = async () => {
   await callDoc.update({ answer });
 
   offerCandidates.onSnapshot((snapshot) => {
+    record(false)
     snapshot.docChanges().forEach((change) => {
       console.log(change);
       if (change.type === 'added') {
@@ -227,6 +237,55 @@ answerButton.onclick = async () => {
       }
     });
   });
-
+  
+  hangupButton.disabled = false;
   calling(true);
 };
+
+const record = () => {
+  navigator.mediaDevices.getUserMedia(constraintObj).then((mediaSrcObj) => {
+    let mediaRecorder = new MediaRecorder(mediaSrcObj);
+    let chunks = [];
+
+    mediaRecorder.start();
+
+    pc.onsignalingstatechange = () => {
+      console.log(pc.signalingState)
+    }
+
+    hangupButton.addEventListener('click', () => {
+      pc.close()
+      mediaRecorder.stop();
+      console.log('Disconnected');
+    })
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(pc.iceConnectionState)
+      if (pc.iceConnectionState == 'disconnected') {
+        mediaRecorder.stop();
+        console.log('Disconnected');
+      }
+    }
+
+    mediaSrcObj.getTracks().forEach((track) => {
+      pc.addTrack(track, mediaSrcObj)
+    })
+
+    mediaRecorder.ondataavailable = function (ev) {
+      chunks.push(ev.data);
+    }
+
+    mediaRecorder.onstop = (ev) => {
+      let blob = new Blob(chunks, { 'type': 'video/mp4;' });
+      chunks = [];
+      console.log(blob)
+      storage.child(startupTime.toString()).put(blob).then(resp => {
+        console.log(resp);
+        console.log("uploaded")
+      }).catch(console.log)
+    }
+  })
+}
+// handle disconnect
+
+
