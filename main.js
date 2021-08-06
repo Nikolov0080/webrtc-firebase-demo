@@ -42,7 +42,7 @@ const ringSound = document.getElementById("ringSound");
 let isRinging = false;
 let canRing = true;
 
-await firebase.database().ref("ring").on('value', (snapshot) => {
+firebase.database().ref("ring").on('value', (snapshot) => {
   const willRing = snapshot.val();
   if (canRing) {
     if (willRing) {
